@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<title>Classements régional Tir à l'arc</title>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.1/papaparse.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<style>
+  body {
+    font-family: "Roboto", sans-serif;
+    background-color: #f8f9fa;
+    color: #333;
+    margin: 40px auto;
+    max-width: 1200px;
+    padding: 0 20px;
+  }
+  h1 {
+    color: #01579b;
+    font-size: 2rem;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #0288d1;
+    padding-bottom: 10px;
+  }
+  select, button, input[type="text"] {
+    margin: 0;
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  select:focus, button:focus, input[type="text"]:focus {
+    outline: none;
+    border-color: #0288d1;
+    box-shadow: 0 0 5px rgba(2, 136, 209, 0.5);
+  }
+  button {
+    background-color: #0288d1;
+    color: white;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: none;
+    margin-top: 10px;
+  }
+  button:hover { background-color: #0277bd; }
+
+  #filters, #para-section, #equipe-filtres {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 20px;
+    align-items: flex-start;
+    margin-top: 20px;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 220px;
+    max-width: 260px;
+  }
+  .field label { font-weight: bold; margin-bottom: 4px; }
+  .field select { width: 100%; }
+
+  table { border-collapse: collapse; width: 100%; margin-top: 30px; background: white; }
+  th, td { border: 1px solid #ccc; padding: 10px; text-align: center; font-size: 14px; }
+  th { background-color: #e1f5fe; color: #01579b; }
+  tbody tr:nth-child(odd) { background-color: #ffffff; }
+  tbody tr:nth-child(even) { background-color: #f0f8ff; }
+  .hidden { display: none !important; }
+
+  .reset-right {
+    background-color: #d32f2f;
+    color: white;
+    margin-left: auto;
+    margin-top: 20px;
+    display: block;
+    padding: 10px 20px;
+    font-weight: bold;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    max-width: 200px;
+  }
+  .reset-right:hover { background-color: #b71c1c; }
+
+  .para-highlight { border: 2px solid #01579b; background-color: #e3f2fd; padding: 16px; border-radius: 8px; }
+  /* Badges DR / D2 */
+  .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-weight:700;font-size:12px;line-height:1}
+  .badge-dr{background:#000;color:#fff}
+  .badge-d2{background:#0d47a1;color:#ffd700}
+</style>
+</head>
+<body>
+  <h1>Classements régional Tir à l'arc</h1>
+
+  <div class="field" style="margin-top: 10px; max-width: 360px;">
+    <label for="searchInput">Recherche rapide (Nom, Club, Catégorie) :</label>
+    <input id="searchInput" type="text" placeholder="Tapez un nom/club/catégorie..." />
+  </div>
+
+  <div class="field" style="flex:0 0 auto; max-width:none;">
+    <label for="classementType">Type de classement :</label>
+    <select id="classementType">
+      <option value="individuel">Individuel</option>
+      <option value="equipe">Équipe</option>
+    </select>
+  </div>
+
+  <!-- Filtres INDIVIDUEL -->
+  <div id="filters">
+    <div class="field">
+      <label for="discipline">Discipline :</label>
+      <select id="discipline"></select>
+    </div>
+    <div class="field">
+      <label for="categorie">Catégorie :</label>
+      <select id="categorie"></select>
+    </div>
+    <div class="field">
+      <label for="arme">Arme :</label>
+      <select id="arme"></select>
+    </div>
+    <div class="field">
+      <label for="sexe">Sexe :</label>
+      <select id="sexe"></select>
+    </div>
+    <div class="field">
+      <label for="departement">Département :</label>
+      <select id="departement"></select>
+    </div>
+    <div id="distance-container" class="field hidden">
+      <label for="distance">Distance :</label>
+      <select id="distance"></select>
+    </div>
+    <div id="blason-container" class="field hidden">
+      <label for="blason">Blason :</label>
+      <select id="blason"></select>
+    </div>
+  </div>
+
+  <!-- Filtres PARA (individuel) -->
+  <div id="para-section" class="hidden para-highlight">
+    <div class="field">
+      <label for="cat_tir">Catégorie tir (para) :</label>
+      <select id="cat_tir"></select>
+    </div>
+    <div class="field">
+      <label for="cat_class">Catégorie classement (para) :</label>
+      <select id="cat_class"></select>
+    </div>
+  </div>
+
+  <!-- Filtres ÉQUIPE -->
+  <div id="equipe-filtres" class="hidden">
+    <div class="field">
+      <label for="equipe-discipline">Discipline :</label>
+      <select id="equipe-discipline"></select>
+    </div>
+    <div class="field">
+      <label for="equipe-categorie">Catégorie de classement :</label>
+      <select id="equipe-categorie"></select>
+    </div>
+    <div class="field">
+      <label for="equipe-arme">Arme équipe :</label>
+      <select id="equipe-arme"></select>
+    </div>
+    <div class="field">
+      <label for="equipe-sexe">Sexe équipe :</label>
+      <select id="equipe-sexe"></select>
+    </div>
+    <div class="field">
+      <label for="equipe-departement">Département :</label>
+      <select id="equipe-departement"></select>
+    </div>
+  </div>
+
+  <button id="resetBtn" class="reset-right">Réinitialiser les filtres</button>
+
+  <div id="activeFilters" style="margin-top: 12px; font-style: italic; color: #555;"></div>
+  <div id="resultCount" style="margin-top: 6px; color:#555;"></div>
+
+  <table id="resultsTable"><thead></thead><tbody></tbody></table>
+
+<script>
+  // ===== Données et constantes =====
+  let individualData = [];
+  let teamData = [];
+
+  // Nouveaux noms d'affichage côté UI (individuel)
+  const disciplines = [
+    "3D", "Campagne", "Nature",
+    "Para tir à l'arc 18m", "Para tir à l'arc extérieur",
+    "TAE", "Tir à 18m"
+  ];
+
+  const armesAll = ["AC", "AD", "BB", "CL", "CO", "SA", "TL"];
+  const sexes = ["F", "H"];
+  const departements = ["44", "49", "53", "72", "85"];
+
+  // Normalisation texte (pour recherche club, etc.)
+  const norm = (s) => (s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+
+  // Mapping d'affichage <-> logique (on garde l'ancien nom pour la logique)
+  const toLegacy = (d) => ({
+    "Tir à 18m": "Tir en Salle",
+    "Para tir à l'arc 18m": "Para 18m",
+    "Para tir à l'arc extérieur": "Para ext"
+  })[d] || d;
+
+  const toDisplay = (d) => ({
+    "Tir en Salle": "Tir à 18m",
+    "Para 18m": "Para tir à l'arc 18m",
+    "Para ext": "Para tir à l'arc extérieur"
+  })[d] || d;
+
+  // Alias d'en-têtes pour clt base 1.csv -> clés historiques attendues par le code
+  const headerAliases = {
+    "N° Licence": "N° LICENCE",
+    "Nom prénom": "Nom Prénom",
+    "Département": "DEP",
+    "Club/Cie - Ville": "CLUB",
+    "MOYENNE": "MOY_SCORE"
+  };
+
+  // ===== Détection DR / D2 (équipe)
+  function detectDivision(row){
+    // 1) Clés usuelles + détection "statut équipe"
+    const baseKeys = ['Division','DR/D2','DR - D2','DR_D2','DR D2','Mention','Niveau','Div','Série','Serie','statut équipe','Statut équipe','Statut Equipe','STATUT EQUIPE'];
+    const dynamicKeys = Object.keys(row||{}).filter(k => {
+      const nk = norm(k);
+      return nk.includes('statut') && nk.includes('equipe');
+    });
+    const keys = [...new Set([...baseKeys, ...dynamicKeys])];
+
+    for (const k of keys){
+      const v = row[k];
+      if (!v) continue;
+      const n = norm(String(v));
+      if (n.includes('d2')) return 'D2';
+      if (n === 'dr' || n.includes(' dr') || n.startsWith('dr')) return 'DR';
+      if (n.includes(' dr ')) return 'DR';
+    }
+    // 2) Parfois la catégorie contient la mention
+    const cat = row['Catégorie de classement']||'';
+    const ncat = norm(cat);
+    if (ncat.includes('d2')) return 'D2';
+    if (ncat.includes(' dr') || ncat.startsWith('dr') || ncat.endsWith(' dr')) return 'DR';
+
+    // 3) Fallback large: chercher DR/D2 exacts dans toute cellule
+    for (const k in row){
+      const v = row[k]; if (!v) continue; const n = norm(String(v)).trim();
+      if (n === 'dr') return 'DR';
+      if (n === 'd2') return 'D2';
+    }
+    return '';
+  }
+  function isTargetTeamCat(cat){
+    const c = norm(cat);
+    const isCL = c.includes('arc') && c.includes('classique');
+    const isCO = c.includes('arc') && (c.includes('poulie') || c.includes('a poulie'));
+    const hasSex = c.includes('homme') || c.includes('femme');
+    return hasSex && (isCL || isCO);
+  }
+
+  function populateSelect(id, values) {
+    const select = $(id);
+    const unique = [...new Set(values.filter(v => v !== undefined && v !== null && String(v).trim() !== ''))]
+      .map(v => (typeof v === 'number' ? String(v) : v))
+      .sort((a,b) => a.localeCompare(b, 'fr', {numeric:true, sensitivity:'base'}));
+    const current = select.val();
+    select.empty().append('<option value="">--Tous--</option>');
+    unique.forEach(v => select.append(`<option value="${v}">${v}</option>`));
+    if (unique.includes(current)) select.val(current);
+  }
+
+  function updateFilters() {
+    const d = $('#discipline').val();
+    const dLegacy = toLegacy(d);
+    const c = $('#categorie').val();
+
+    const disciplineArmes = {
+      "Tir en Salle": ["CL", "CO", "BB"],
+      "TAE": ["CL", "CO", "BB"],
+      "3D": ["AC", "AD", "CL", "CO", "TL"],
+      "Campagne": ["AD", "BB", "CL", "CO"],
+      "Nature": ["AC", "AD", "CL", "CO", "TL"],
+      "Para 18m": ["CL", "CO", "BB", "SA"],
+      "Para ext": ["CL", "CO", "BB", "SA"]
+    };
+
+    const filtered = individualData.filter(row => (!dLegacy || row.DISCIPLINE_CANON === dLegacy));
+
+    // Catégories dynamiques
+    const prevCat = $('#categorie').val();
+    populateSelect('#categorie', filtered.map(r => r.CAT));
+    if (prevCat) $('#categorie').val(prevCat);
+
+    // Armes dynamiques
+    if (disciplineArmes[dLegacy]) {
+      const prevArme = $('#arme').val();
+      populateSelect('#arme', disciplineArmes[dLegacy]);
+      if (disciplineArmes[dLegacy].includes(prevArme)) $('#arme').val(prevArme);
+    } else {
+      populateSelect('#arme', armesAll);
+    }
+
+    // Distance / Blason
+    if (dLegacy === 'TAE' || dLegacy === 'Para ext') {
+      const a = $('#arme').val();
+      let distFiltered = filtered.filter(row => (!c || row.CAT === c));
+      if (a) distFiltered = distFiltered.filter(row => row.ARME === a);
+      const distances = distFiltered.map(r => r.DISTANCE);
+      const blasons   = distFiltered.map(r => r.BLASON);
+      $('#distance-container, #blason-container').removeClass('hidden');
+      populateSelect('#distance', distances);
+      populateSelect('#blason', blasons);
+    } else {
+      $('#distance-container, #blason-container').addClass('hidden');
+    }
+
+    // Para section
+    if (dLegacy === 'Para 18m' || dLegacy === 'Para ext') {
+      $('#para-section').removeClass('hidden');
+      const filteredTir   = filtered.filter(r => r.CAT_TIR).map(r => r.CAT_TIR);
+      populateSelect('#cat_tir', filteredTir);
+      const tir = $('#cat_tir').val();
+      const filteredClass = filtered.filter(r => (!tir || r.CAT_TIR === tir) && r.CAT_CLASS).map(r => r.CAT_CLASS);
+      populateSelect('#cat_class', filteredClass);
+    } else {
+      $('#para-section').addClass('hidden');
+    }
+  }
+
+  function renderTable(data, columns) {
+    const thead = $('#resultsTable thead').empty();
+    const tbody = $('#resultsTable tbody').empty();
+    const headerRow = $('<tr>');
+    columns.forEach(col => headerRow.append(`<th>${col}</th>`));
+    thead.append(headerRow);
+    data.forEach(row => {
+      const tr = $('<tr>');
+      columns.forEach(col => tr.append(`<td>${(row[col] ?? '')}</td>`));
+      tbody.append(tr);
+    });
+  }
+
+  function filterAndDisplay() {
+    const hasAny = (arr) => arr.some(v => !!v && String(v).trim() !== '');
+    const showNoneMessage = () => {
+      $('#resultsTable thead').empty();
+      $('#resultsTable tbody').empty();
+      $('#resultCount').text('');
+      $('#activeFilters').text('');
+    };
+
+    const filtersSummary = [];
+    const origSearch = $('#searchInput').val();
+    const search = (origSearch || '').toLowerCase();
+    const type = $('#classementType').val();
+
+    if (type === 'individuel') {
+      const hasFilter = hasAny([
+        $('#discipline').val(), $('#categorie').val(), $('#arme').val(), $('#sexe').val(),
+        $('#departement').val(), $('#distance').val(), $('#blason').val(), origSearch
+      ]);
+      if (!hasFilter) { showNoneMessage(); return; }
+
+      let data = individualData;
+      const d = $('#discipline').val();
+      const dLegacy = toLegacy(d);
+      const c = $('#categorie').val();
+      const a = $('#arme').val();
+      const s = $('#sexe').val();
+      const dep = $('#departement').val();
+      const dist = $('#distance').val();
+      const bl = $('#blason').val();
+      const cat_tir = $('#cat_tir').val();
+      const cat_class = $('#cat_class').val();
+
+      if (d) filtersSummary.push(`Discipline = ${d}`);
+      if (c) filtersSummary.push(`Catégorie = ${c}`);
+      if (a) filtersSummary.push(`Arme = ${a}`);
+      if (s) filtersSummary.push(`Sexe = ${s}`);
+      if (dep) filtersSummary.push(`Département = ${dep}`);
+      if (dist) filtersSummary.push(`Distance = ${dist}`);
+      if (bl) filtersSummary.push(`Blason = ${bl}`);
+      if (cat_tir) filtersSummary.push(`Cat. tir = ${cat_tir}`);
+      if (cat_class) filtersSummary.push(`Cat. class. = ${cat_class}`);
+      if (search) filtersSummary.push(`Recherche = ${origSearch}`);
+
+      $("#activeFilters").html(filtersSummary.length ? "<strong>Filtres actifs :</strong> " + filtersSummary.join(" | ") : "");
+
+      data = data.filter(row => (!dLegacy || row.DISCIPLINE_CANON === dLegacy)
+        && (!c || row.CAT === c)
+        && (!a || row.ARME === a)
+        && (!s || row.SEXE === s)
+        && (!dep || row.DEP === dep)
+        && (!dist || row.DISTANCE === dist)
+        && (!bl || row.BLASON === bl)
+        && (!cat_tir || row.CAT_TIR === cat_tir)
+        && (!cat_class || row.CAT_CLASS === cat_class)
+        && (!search || (row["Nom Prénom"] && row["Nom Prénom"].toLowerCase().includes(search)) || (row["CLUB"] && row["CLUB"].toLowerCase().includes(search)))
+      );
+
+      updateFilters();
+
+      let cols = ["DISCIPLINE", "RANG", "N° LICENCE", "Nom Prénom", "CAT", "SEXE", "ARME", "DEP", "CLUB", "SCORE1", "SCORE2", "SCORE3", "MOY_SCORE"];
+      if (dLegacy === 'TAE') cols.push("DISTANCE", "BLASON");
+      if (dLegacy === 'Para 18m') cols.push("CAT_TIR", "CAT_CLASS");
+      if (dLegacy === 'Para ext') cols.push("DISTANCE", "BLASON", "CAT_TIR", "CAT_CLASS");
+
+      renderTable(data, cols);
+      $('#resultCount').text(`${data.length} résultat${data.length>1?'s':''}`);
+
+    } else {
+      // ===== ÉQUIPE =====
+      const hasTeamFilter = hasAny([
+        $('#equipe-discipline').val(), $('#equipe-categorie').val(), $('#equipe-arme').val(),
+        $('#equipe-sexe').val(), $('#equipe-departement').val(), origSearch
+      ]);
+      if (!hasTeamFilter) { showNoneMessage(); return; }
+
+      let data = teamData.slice();
+      const d = $('#equipe-discipline').val();
+      const dLegacyTeam = toLegacy(d);
+      const c = $('#equipe-categorie').val();
+      const a = $('#equipe-arme').val();
+      const s = $('#equipe-sexe').val();
+      const dep = $('#equipe-departement').val();
+
+      const filtersSummary2 = [];
+      if (d) filtersSummary2.push(`Discipline = ${d}`);
+      if (c) filtersSummary2.push(`Catégorie = ${c}`);
+      if (a) filtersSummary2.push(`Arme = ${a}`);
+      if (s) filtersSummary2.push(`Sexe = ${s}`);
+      if (dep) filtersSummary2.push(`Département = ${dep}`);
+      if (search) filtersSummary2.push(`Recherche = ${origSearch}`);
+      $("#activeFilters").html(filtersSummary2.length ? "<strong>Filtres actifs :</strong> " + filtersSummary2.join(" | ") : "");
+
+      data = data.filter(row => (!d || row.DISC_CANON === toLegacy(d))
+        && (!c || row["Catégorie de classement"] === c)
+        && (!a || row["Arme équipe"] === a)
+        && (!s || row["Sexe équipe"] === s)
+        && (!dep || String(row["Département"]) === dep)
+        && (!search ||
+              (row["Nom Club/Cie Ville"] && row["Nom Club/Cie Ville"].toLowerCase().includes(search)) ||
+              (row["Catégorie de classement"] && row["Catégorie de classement"].toLowerCase().includes(search))
+           )
+      );
+
+      // Tri: Rang comité régional ASC, sinon Score Equipe DESC
+      data.sort((a,b) => {
+        const ra = parseInt(a["Rang comité régional"]); const rb = parseInt(b["Rang comité régional"]);
+        if (!isNaN(ra) && !isNaN(rb)) {
+          if (ra !== rb) return ra - rb;
+          return ((parseFloat(b["Score Equipe"])||0) - (parseFloat(a["Score Equipe"])||0));
+        }
+        if (!isNaN(ra)) return -1;
+        if (!isNaN(rb)) return 1;
+        return ((parseFloat(b["Score Equipe"])||0) - (parseFloat(a["Score Equipe"])||0));
+      });
+
+      // Colonnes dynamiques (équipe)
+      const dnorm = norm(d);
+      const anorm = norm(a);
+      const isNature3DCampagne = ['nature','3d','campagne','tir nature','tir 3d','tir campagne'].includes(dnorm);
+      const isSalle18m = ['tir en salle','tir a 18m','tir 18m','18m','salle'].includes(dnorm);
+      const armeIsBB = (anorm === 'bb');
+
+      const showDivisionCol = (dLegacyTeam === 'TAE');
+      const cols = [
+        "Discipline",
+        "Catégorie de classement",
+        ...(showDivisionCol ? ["Division"] : []),
+        ...(isNature3DCampagne ? [] : ["Arme équipe"]),
+        ...(isSalle18m && armeIsBB ? [] : ["Sexe équipe"]),
+        "Département",
+        "Rang comité régional",
+        "Nom Club/Cie Ville",
+        "Score 1",
+        "Score 2",
+        "Score 3",
+        "Score Equipe"
+      ];
+
+      renderTable(data, cols);
+      $("#resultCount").text(`${data.length} équipe${data.length>1?"s":""}`);
+    }
+  }
+
+  $(document).ready(function() {
+    // Pré-remplissage filtres INDIV
+    populateSelect('#discipline', disciplines);
+    populateSelect('#arme', armesAll);
+    populateSelect('#sexe', sexes);
+    populateSelect('#departement', departements);
+
+    // Listeners
+    $("select").on("change", filterAndDisplay);
+    $("#searchInput").on("input", filterAndDisplay);
+
+    $('#classementType').on('change', function() {
+      const type = $(this).val();
+      if (type === 'individuel') {
+        $('#filters, #para-section').removeClass('hidden');
+        $('#equipe-filtres').addClass('hidden');
+      } else {
+        $('#filters, #para-section').addClass('hidden');
+        $('#equipe-filtres').removeClass('hidden');
+      }
+      filterAndDisplay();
+    });
+
+    $('#resetBtn').on('click', function() { location.reload(); });
+
+    // ====== Chargement données INDIV (clt base 1.csv) ======
+    Papa.parse("clt base 1.csv", {
+      download: true,
+      header: true,
+      delimiter: ";",
+      skipEmptyLines: true,
+      complete: function(results) {
+        individualData = results.data.map(r => {
+          const o = { ...r };
+          // Appliquer alias d'en-têtes vers clés historiques
+          for (const src in headerAliases) {
+            const dst = headerAliases[src];
+            if (o[src] !== undefined && o[dst] === undefined) o[dst] = o[src];
+          }
+          // Discipline canonique (ancien nom) + affichage (nouveau nom)
+          const discCanon = toLegacy(o.DISCIPLINE);
+          o.DISCIPLINE_CANON = discCanon;
+          o.DISCIPLINE = toDisplay(discCanon);
+          return o;
+        });
+        filterAndDisplay();
+      }
+    });
+
+    // ====== Chargement données ÉQUIPE ======
+    Papa.parse("full team et bb.csv", {
+      download: true,
+      header: true,
+      delimiter: ";",
+      skipEmptyLines: true,
+      complete: function(results) {
+        teamData = results.data.map(r => {
+          const s1 = parseFloat(r["Score 1"]) || 0;
+          const s2 = parseFloat(r["Score 2"]) || 0;
+          const s3 = parseFloat(r["Score 3"]) || 0;
+          const total = parseFloat(r["Score Equipe"]) || (s1 + s2 + s3);
+          const discCanon = toLegacy(r["Discipline"]);
+          const discDisplay = toDisplay(discCanon);
+          const rawDiv = detectDivision(r);
+          const showDiv = (discCanon === 'TAE') && isTargetTeamCat(r["Catégorie de classement"]||'');
+          const divBadge = showDiv && rawDiv === 'DR' ? '<span class="badge badge-dr">DR</span>' :
+                           showDiv && rawDiv === 'D2' ? '<span class="badge badge-d2">D2</span>' : ''; 
+          return Object.assign({}, r, {
+            "Département": r["Département"] ? String(r["Département"]) : "",
+            "Score Equipe": total,
+            "DISC_CANON": discCanon,
+            "Discipline": discDisplay,
+            "Division": divBadge
+          });
+        });
+
+        // Peupler filtres ÉQUIPE (discipline -> catégories)
+        populateSelect('#equipe-discipline', teamData.map(r => r["Discipline"]));
+        populateSelect('#equipe-departement', teamData.map(r => r["Département"]));
+
+        const updateTeamFilterOptions = () => {
+          const d = $('#equipe-discipline').val();
+          let filtered = teamData;
+          if (d) filtered = filtered.filter(r => r.DISC_CANON === toLegacy(d));
+          const cats = filtered.map(r => r["Catégorie de classement"]);
+          const prevCat = $('#equipe-categorie').val();
+          populateSelect('#equipe-categorie', cats);
+          if (!cats.includes(prevCat)) $('#equipe-categorie').val('');
+
+          // Affiner armes/sexes selon (D,C)
+          const c = $('#equipe-categorie').val();
+          let filteredDC = filtered;
+          if (c) filteredDC = filteredDC.filter(r => r["Catégorie de classement"] === c);
+          populateSelect('#equipe-arme', filteredDC.map(r => r["Arme équipe"]));
+          populateSelect('#equipe-sexe', filteredDC.map(r => r["Sexe équipe"]));
+        };
+
+        $('#equipe-discipline, #equipe-categorie').on('change', updateTeamFilterOptions);
+        updateTeamFilterOptions();
+
+        filterAndDisplay();
+      }
+    });
+  });
+</script>
+
+<!-- ======= POPUP RÉSULTATS INDIVIDUELS ======= -->
+<div id="modalOverlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:999;">
+  <div id="modalContent" style="background:white; padding:20px; border-radius:8px; max-width:800px; width:90%; max-height:90vh; overflow-y:auto;">
+    <span id="closeModal" style="float:right; cursor:pointer; font-weight:bold; color:#d32f2f;">Fermer</span>
+    <h2>Détails des résultats</h2>
+    <div id="modalResults"></div>
+  </div>
+</div>
+
+<script>
+  let resultatsIndiv = [];
+
+  function showModal(htmlContent) {
+    document.getElementById("modalResults").innerHTML = htmlContent;
+    document.getElementById("modalOverlay").style.display = "flex";
+  }
+  function hideModal() { document.getElementById("modalOverlay").style.display = "none"; }
+
+  document.addEventListener("DOMContentLoaded", function() {
+    document.getElementById("modalOverlay").addEventListener("click", function(e) {
+      if (e.target.id === "modalOverlay" || e.target.id === "closeModal") hideModal();
+    });
+
+    Papa.parse("resultat indiv genreral2.csv", {
+      download: true,
+      header: true,
+      delimiter: ";",
+      complete: function(results) { resultatsIndiv = results.data; }
+    });
+
+    // Active le clic sur Nom Prénom uniquement en vue Individuel
+    const observer = new MutationObserver(() => {
+      const type = document.getElementById('classementType')?.value;
+      if (type !== 'individuel') return;
+
+      document.querySelectorAll("#resultsTable tbody tr").forEach(row => {
+        const licence = row.children[2]?.innerText.trim(); // N° LICENCE
+        const disciplineAff = row.children[0]?.innerText.trim(); // DISCIPLINE (affichée)
+        const cell = row.children[3]; // Nom Prénom
+        const nom = cell?.innerText.trim();
+
+        if (cell && licence) {
+          cell.style.cursor = "pointer";
+          cell.style.textDecoration = "underline";
+          cell.onclick = () => {
+            const discCanon = ({
+              "Tir à 18m": "Tir en Salle",
+              "Para tir à l'arc 18m": "Para 18m",
+              "Para tir à l'arc extérieur": "Para ext"
+            })[disciplineAff] || disciplineAff;
+
+            const results = resultatsIndiv.filter(r => r["NO_LICENCE"] === licence && r["DISCIPLINE"] === discCanon);
+            if (results.length === 0) {
+              showModal("<p>Aucun résultat trouvé pour ce tireur dans cette discipline.</p>");
+            } else {
+              const toNum = v => { const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? -Infinity : n; };
+              let html = `<h3 style="margin-bottom:10px;">Résultats de <span style="color:#0077cc">${nom}</span></h3>`;
+
+              if (discCanon === "TAE") {
+                const groups = {};
+                results.forEach(r => {
+                  const bl = r.BLASON || "—";
+                  const dist = r.DISTANCE || r.Distance || "—";
+                  const key = bl + "||" + dist;
+                  if (!groups[key]) groups[key] = { bl, dist, rows: [] };
+                  groups[key].rows.push(r);
+                });
+                Object.values(groups).forEach(g => {
+                  g.rows.sort((a,b) => toNum(b.SCORE) - toNum(a.SCORE));
+                  html += `<h4 style="margin:10px 0 6px 0;">TAE — Blason: <strong>${g.bl}</strong> • Distance: <strong>${g.dist}</strong></h4>`;
+                  html += '<table style="width:100%; border-collapse:collapse; font-size:13px;">'
+                        + '<tr style="background:#f0f0f0;"><th style="padding:6px;border:1px solid #ddd;">Discipline</th>'
+                        + '<th style="padding:6px;border:1px solid #ddd;">Date</th>'
+                        + '<th style="padding:6px;border:1px solid #ddd;">Lieu</th>'
+                        + '<th style="padding:6px;border:1px solid #ddd;">Score</th>'
+                        + '<th style="padding:6px;border:1px solid #ddd;">Place</th></tr>';
+                  g.rows.forEach(r => {
+                    html += `<tr>
+                      <td style="padding:6px;border:1px solid #ddd;">${r.DISCIPLINE ?? ""}</td>
+                      <td style="padding:6px;border:1px solid #ddd;">${r.D_DEBUT_CONCOURS ?? r.D_DEBUT ?? r.DATE ?? ""}</td>
+                      <td style="padding:6px;border:1px solid #ddd;">${r.Lieu_type ?? r.LIEU ?? ""}</td>
+                      <td style="padding:6px;border:1px solid #ddd;">${r.SCORE ?? ""}</td>
+                      <td style="padding:6px;border:1px solid #ddd;">${r.PLACE_DEF ?? r.PLACE ?? ""}</td>
+                    </tr>`;
+                  });
+                  html += "</table>";
+                });
+              } else {
+                const sorted = results.slice().sort((a,b) => toNum(b.SCORE) - toNum(a.SCORE));
+                html += '<table style="width:100%; border-collapse:collapse; font-size:13px;">'
+                     + '<tr style="background:#f0f0f0;">\
+<th style="padding:6px;border:1px solid #ddd;">Discipline</th>'
+                     + '<th style="padding:6px;border:1px solid #ddd;">Date</th>'
+                     + '<th style="padding:6px;border:1px solid #ddd;">Lieu</th>'
+                     + '<th style="padding:6px;border:1px solid #ddd;">Score</th>'
+                     + '<th style="padding:6px;border:1px solid #ddd;">Place</th></tr>';
+                sorted.forEach(r => {
+                  html += `<tr>
+                    <td style="padding:6px;border:1px solid #ddd;">${r.DISCIPLINE ?? ""}</td>
+                    <td style="padding:6px;border:1px solid #ddd;">${r.D_DEBUT_CONCOURS ?? r.D_DEBUT ?? r.DATE ?? ""}</td>
+                    <td style="padding:6px;border:1px solid #ddd;">${r.Lieu_type ?? r.LIEU ?? ""}</td>
+                    <td style="padding:6px;border:1px solid #ddd;">${r.SCORE ?? ""}</td>
+                    <td style="padding:6px;border:1px solid #ddd;">${r.PLACE_DEF ?? r.PLACE ?? ""}</td>
+                  </tr>`;
+                });
+                html += "</table>";
+              }
+              showModal(html);
+            }
+          };
+        }
+      });
+    });
+
+    const target = document.querySelector("#resultsTable tbody");
+    if (target) observer.observe(target, { childList: true, subtree: true });
+  });
+</script>
+</body>
+</html>
